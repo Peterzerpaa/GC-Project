@@ -13,3 +13,6 @@ opencv-python (cv2)
 speech_recognition
 Flask
 
+## More technologies
+Virtual enviroment(.venv)
+
