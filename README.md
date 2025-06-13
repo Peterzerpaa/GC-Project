@@ -2,16 +2,12 @@
 
 **GC-Project** is a web application designed to help address climate-related issues by analyzing household energy consumption. It combines technologies such as image recognition using AI, voice transcription, and energy usage calculation based on a real database.
 
----
-
 ## Features
 
 - Energy consumption calculator for household appliances using a SQL database.
 - Image recognition powered by a pre-trained AI model (ResNet50).
 - Voice transcription for spoken input.
 - Explanation of the energy consumption level and personalized advice to improve it.
-
----
 
 ## Technologies Used
 
@@ -31,9 +27,8 @@
 ### Additional:
 - Python virtual environment (`venv`)
 
----
-
 ## Project Structure
+
 GC-Project/
 │
 ├── app.py # Main Flask application
@@ -46,8 +41,9 @@ GC-Project/
 ├── .gitignore # Git ignore file
 └── README.md # Project documentation
 
-
----
+python
+Copiar
+Editar
 
 ## Large Files Not Included
 
@@ -63,11 +59,13 @@ To keep the repository lightweight, the following large files are **not included
   model.save_weights("resnet50_imagenet_tf.2.0.h5")
 .venv/
 Python virtual environment. It is excluded from Git due to size. Create it locally with:
+
+bash
+Copiar
+Editar
 python -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-
-
 Installation
 Install the required packages with:
 
@@ -103,4 +101,14 @@ Editar
 python app.py
 Open your browser and go to:
 http://127.0.0.1:5000/
+
+Notes
+The uploads/ folder and the ResNet50 model file are excluded via .gitignore.
+
+gTTS requires an internet connection to generate audio responses.
+
+You can expand the image recognition model and device database to support additional appliances.
+
+Author
+Developed by Diego as part of a project to promote environmental awareness and efficient energy use through technology.
 
