@@ -41,9 +41,7 @@ GC-Project/
 ├── .gitignore # Git ignore file
 └── README.md # Project documentation
 
-python
-Copiar
-Editar
+
 
 ## Large Files Not Included
 
@@ -60,24 +58,18 @@ To keep the repository lightweight, the following large files are **not included
 .venv/
 Python virtual environment. It is excluded from Git due to size. Create it locally with:
 
-bash
-Copiar
-Editar
+
 python -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 Installation
 Install the required packages with:
 
-bash
-Copiar
-Editar
+
 pip install -r requirements.txt
 Example requirements.txt content:
 
-nginx
-Copiar
-Editar
+
 Flask
 tensorflow
 keras
@@ -89,15 +81,11 @@ opencv-python
 How to Run
 Activate the virtual environment:
 
-bash
-Copiar
-Editar
+
 source .venv/bin/activate
 Start the Flask app:
 
-bash
-Copiar
-Editar
+
 python app.py
 Open your browser and go to:
 http://127.0.0.1:5000/
