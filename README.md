@@ -98,5 +98,5 @@ gTTS requires an internet connection to generate audio responses.
 You can expand the image recognition model and device database to support additional appliances.
 
 Author
-Developed by Diego as part of a project to promote environmental awareness and efficient energy use through technology.
+Developed by Peter as part of a project to promote environmental awareness and efficient energy use through technology.
 
