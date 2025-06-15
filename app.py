@@ -5,17 +5,17 @@ import numpy as np
 from keras.applications.resnet50 import ResNet50, preprocess_input, decode_predictions
 from keras.preprocessing import image
 from gtts import gTTS
-from playsound import playsound
 import difflib
+import uuid
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
+app.config['STATIC_FOLDER'] = 'static'
 
-MODEL_PATH = "resnet50_imagenet_tf.2.0.h5"
-model = ResNet50(weights=None)
-model.load_weights(MODEL_PATH)
+# Cargar modelo ResNet50
+model = ResNet50(weights='imagenet')
 
-# Mapeo de etiquetas a nombres de la base de datos
+# Mapeo de etiquetas del modelo a nombres conocidos
 DEVICE_MAP = {
     "led bulb": "Bombilla LED",
     "incandescent bulb": "Bombilla incandescente",
@@ -43,19 +43,28 @@ DEVICE_MAP = {
     "monitor": "Monitor de PC (24\")"
 }
 
+# Eliminar audios antiguos
+def limpiar_audios():
+    for fname in os.listdir("static"):
+        if fname.startswith("audio_") and fname.endswith(".mp3"):
+            try:
+                os.remove(os.path.join("static", fname))
+            except Exception as e:
+                print(f"No se pudo borrar {fname}: {e}")
 
-
-# Obtener información de la base de datos
+# Obtener información del dispositivo desde la base de datos
 def get_device_info(nombre):
-    con = sqlite3.connect("electrodomesticos.db")
-    cur = con.cursor()
-    cur.execute("SELECT potencia_w FROM electrodomesticos WHERE LOWER(nombre) = ?", (nombre.lower(),))
-    row = cur.fetchone()
-    con.close()
-    if row:
-        return float(row[0])
-    return None
+    try:
+        with sqlite3.connect("electrodomesticos.db") as con:
+            cur = con.cursor()
+            cur.execute("SELECT potencia_w FROM electrodomesticos WHERE LOWER(nombre) = ?", (nombre.lower(),))
+            row = cur.fetchone()
+            return float(row[0]) if row else None
+    except sqlite3.Error as e:
+        print("Error en la base de datos:", e)
+        return None
 
+# Clasificación del nivel de uso energético
 def get_usage_level(kwh):
     if kwh < 1:
         return "Bajo", ["Sigue usándolo eficientemente", "Apágalo cuando no lo uses"]
@@ -64,11 +73,14 @@ def get_usage_level(kwh):
     else:
         return "Alto", ["Reduce el tiempo de uso", "Considera cambiarlo por uno más eficiente"]
 
-#  función para hablar usando gTTS
+# Generar archivo de voz con gTTS
 def speak_text(text):
+    limpiar_audios()
+    audio_name = f"audio_{uuid.uuid4().hex}.mp3"
+    audio_path = os.path.join("static", audio_name)
     tts = gTTS(text=text, lang='es')
-    audio_path = os.path.join("static", "audio.mp3")
     tts.save(audio_path)
+    return audio_name
 
 @app.route("/")
 def home():
@@ -80,23 +92,25 @@ def calculate_energy():
     hours = float(request.form["usage_hours"])
     watts = get_device_info(name)
     if watts is None:
-        watts = 100  
+        watts = 100  # Valor por defecto
 
     kwh = (watts * hours) / 1000
     level, advice = get_usage_level(kwh)
 
-    # Leer en voz alta
     speech_text = f"Has seleccionado {name}. Se ha usado durante {hours} horas. Consumo estimado {round(kwh, 2)} kilovatios hora. Nivel de consumo {level}."
-    speak_text(speech_text)
+    audio_name = speak_text(speech_text)
 
-    return render_template("index.html", result={
+    result = {
         "device": name,
         "hours": hours,
         "watts": watts,
         "kwh": round(kwh, 2),
         "level": level,
-        "advice": advice
-    })
+        "advice": advice,
+        "audio_file": audio_name
+    }
+
+    return render_template("index.html", result=result, uuid=uuid.uuid4().hex)
 
 @app.route("/recognize", methods=["POST"])
 def recognize_image():
@@ -104,19 +118,20 @@ def recognize_image():
     if not img_file:
         return redirect("/")
 
-    filepath = os.path.join(app.config['UPLOAD_FOLDER'], img_file.filename)
+    filename = img_file.filename
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     img_file.save(filepath)
 
+    # Procesar la imagen
     img = image.load_img(filepath, target_size=(224, 224))
     x = image.img_to_array(img)
     x = np.expand_dims(x, axis=0)
     x = preprocess_input(x)
 
     preds = model.predict(x)
-    decoded = decode_predictions(preds, top=3)[0]
+    decoded = decode_predictions(preds, top=5)[0]
 
     recognized_label = None
-
     for _, label, prob in decoded:
         label_clean = label.replace("_", " ").lower()
 
@@ -124,7 +139,7 @@ def recognize_image():
             recognized_label = DEVICE_MAP[label_clean]
             break
 
-        closest = difflib.get_close_matches(label_clean, DEVICE_MAP.keys(), n=1, cutoff=0.6)
+        closest = difflib.get_close_matches(label_clean, DEVICE_MAP.keys(), n=1, cutoff=0.5)
         if closest:
             recognized_label = DEVICE_MAP[closest[0]]
             break
@@ -140,19 +155,29 @@ def recognize_image():
     kwh = (watts * usage_hours) / 1000
     level, advice = get_usage_level(kwh)
 
-    return render_template("index.html", result={
+    speech_text = f"Imagen reconocida como {recognized_label}. Se estima un uso de {usage_hours} horas. Consumo aproximado de {round(kwh, 2)} kilovatios hora. Nivel de consumo {level}."
+    audio_name = speak_text(speech_text)
+
+    result = {
         "device": recognized_label,
         "hours": usage_hours,
         "watts": watts,
         "kwh": round(kwh, 2),
         "level": level,
         "advice": advice,
-        "predictions": decoded
-    })
+        "predictions": decoded,
+        "audio_file": audio_name
+    }
 
+    return render_template("index.html", result=result, uuid=uuid.uuid4().hex)
+os.makedirs("static", exist_ok=True)
 if __name__ == "__main__":
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+    os.makedirs(app.config['STATIC_FOLDER'], exist_ok=True)
     app.run(debug=True)
+
+
+
 
 
 
