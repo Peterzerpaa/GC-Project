@@ -3,105 +3,119 @@
 <head>
     <meta charset="UTF-8">
     <title>GC-Project - Calculadora Energética</title>
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
-        #playing-indicator {
-            display: none;
-            font-weight: bold;
-            color: #1a73e8;
-            margin-top: 10px;
+        body {
+            font-family: Arial, sans-serif;
+            margin: 2rem;
+            background-color: #f7f9fa;
+            color: #333;
         }
-
-        #repeat-btn {
-            margin-top: 10px;
-            padding: 6px 12px;
-            background-color: #1a73e8;
+        h1 {
+            color: #2a7ae2;
+        }
+        form {
+            background: #fff;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        input[type="text"], input[type="number"], input[type="file"] {
+            width: 100%;
+            padding: 0.5rem;
+            margin: 0.5rem 0 1rem;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            background: #2a7ae2;
             color: white;
+            padding: 0.6rem 1.2rem;
             border: none;
-            border-radius: 5px;
+            border-radius: 4px;
             cursor: pointer;
         }
-
-        #repeat-btn:hover {
-            background-color: #155ab6;
+        button:hover {
+            background: #1e5bbf;
+        }
+        .result {
+            background: #e9f5ff;
+            padding: 1.5rem;
+            border-left: 6px solid #2a7ae2;
+            margin-top: 1.5rem;
+            border-radius: 6px;
+        }
+        .prediction-list {
+            margin-top: 1rem;
+        }
+        .prediction-item {
+            margin: 0.25rem 0;
+        }
+        audio {
+            margin-top: 1rem;
+            width: 100%;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Calculadora de Consumo Energético</h1>
+    <h1>GC-Project - Calculadora de Energía</h1>
 
-        <!-- Formulario manual -->
-        <form action="/calculate" method="POST">
-            <h2>Introduce tu dispositivo</h2>
-            <label for="device_name">Nombre del dispositivo:</label>
-            <input type="text" name="device_name" required>
+    <form action="/calculate" method="POST">
+        <h2>Cálculo manual por nombre</h2>
+        <label for="device_name">Nombre del dispositivo:</label>
+        <input type="text" id="device_name" name="device_name" placeholder="Ej. Lavadora" required>
 
-            <label for="usage_hours">Horas de uso al día:</label>
-            <input type="number" name="usage_hours" step="0.1" required>
+        <label for="usage_hours">Horas de uso diario:</label>
+        <input type="number" id="usage_hours" name="usage_hours" step="0.1" min="0" required>
 
-            <button type="submit">Calcular consumo</button>
-        </form>
+        <button type="submit">Calcular consumo</button>
+    </form>
 
-        <!-- Formulario de reconocimiento -->
-        <form action="/recognize" method="POST" enctype="multipart/form-data">
-            <h2>O sube una imagen del dispositivo</h2>
-            <input type="file" name="device_image" accept="image/*" required>
-            <button type="submit">Reconocer y calcular</button>
-        </form>
+    <form action="/recognize" method="POST" enctype="multipart/form-data">
+        <h2>Reconocimiento por imagen</h2>
+        <label for="device_image">Selecciona una imagen del dispositivo:</label>
+        <input type="file" id="device_image" name="device_image" accept="image/*" required>
 
-        {% if result %}
-        <div class="result-box">
-            <h2>Resultados</h2>
+        <button type="submit">Reconocer y calcular</button>
+    </form>
+
+    {% if result %}
+        <div class="result">
+            <h2>Resultado</h2>
             <p><strong>Dispositivo:</strong> {{ result.device }}</p>
-            <p><strong>Horas de uso:</strong> {{ result.hours }} h/día</p>
-            <p><strong>Potencia:</strong> {{ result.watts }} W</p>
-            <p><strong>Consumo diario:</strong> {{ result.kwh }} kWh</p>
+            <p><strong>Horas de uso:</strong> {{ result.hours }} h</p>
+            <p><strong>Potencia estimada:</strong> {{ result.watts }} W</p>
+            <p><strong>Consumo diario estimado:</strong> {{ result.kwh }} kWh</p>
             <p><strong>Nivel de consumo:</strong> {{ result.level }}</p>
             <p><strong>Consejos:</strong></p>
             <ul>
                 {% for tip in result.advice %}
-                <li>{{ tip }}</li>
+                    <li>{{ tip }}</li>
                 {% endfor %}
             </ul>
+
             {% if result.predictions %}
-            <p><strong>Predicciones del modelo:</strong></p>
-            <ul>
-                {% for _, label, prob in result.predictions %}
-                <li>{{ label }} - {{ '%.2f' | format(prob * 100) }}%</li>
-                {% endfor %}
-            </ul>
+                <div class="prediction-list">
+                    <h3>Predicciones del modelo:</h3>
+                    <ul>
+                        {% for _, label, prob in result.predictions %}
+                            <li class="prediction-item">{{ label }} ({{ (prob * 100) | round(2) }}%)</li>
+                        {% endfor %}
+                    </ul>
+                </div>
             {% endif %}
 
-            <!-- Indicador y botón de audio -->
-            <p id="playing-indicator">🔊 Reproduciendo audio...</p>
-            <button id="repeat-btn" onclick="reproducirAudio()">🔁 Repetir audio</button>
-            <audio id="audio" src="{{ url_for('static', filename='audio.mp3') }}"></audio>
+            {% if result.audio_file %}
+                <audio controls>
+                    <source src="{{ url_for('static', filename=result.audio_file) }}" type="audio/mpeg">
+                    Tu navegador no soporta audio.
+                </audio>
+            {% endif %}
         </div>
-        {% endif %}
-    </div>
-
-    <script>
-        const audio = document.getElementById("audio");
-        const indicator = document.getElementById("playing-indicator");
-
-        function reproducirAudio() {
-            if (audio) {
-                indicator.style.display = "block";
-                audio.play();
-            }
-        }
-
-        if (audio) {
-            audio.addEventListener("ended", () => {
-                indicator.style.display = "none";
-            });
-
-            // Reproduce automáticamente al cargar la página con resultados
-            window.onload = function () {
-                reproducirAudio();
-            };
-        }
-    </script>
+    {% endif %}
 </body>
 </html>
+
+
+
